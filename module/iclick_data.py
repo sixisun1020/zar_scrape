@@ -1,0 +1,50 @@
+import requests
+from bs4 import BeautifulSoup
+import datetime
+from psycopg2 import connect
+import time
+
+def clickSwap_scraping():
+    host = 'localhost'
+    port = '5432'
+    user = 'postgres'
+    password = 'postgres'
+    database = 'zar_com'
+
+    date_format = "%Y-%m-%d"
+    today = datetime.datetime.today()
+
+    conn = connect(host=host, port=port, user=user, password=password, database=database)
+    c = conn.cursor()
+    try:
+        url = "https://www.click-sec.com/corp/guide/c365/swplog/?year={}&month={:0>2}&pair=ZARJPY".format(today.year,today.month)
+        html = requests.get(url)
+        soup = BeautifulSoup(html.content, "html.parser")
+
+        for i in range(int(today.day)):
+                year = today.year
+                month = today.month
+                day = i+1
+                
+                swap_tag = "#myForm > div.swap > table > tbody > tr:nth-of-type(" + str(day) + ") > td.col4.day"
+                dt = datetime.date(year, month, day)
+               
+                dt_datetime =datetime.datetime(year,month,day)
+                swap_data = soup.select_one(swap_tag).text
+                write_date = dt.strftime(date_format)
+                if swap_data:
+                    swap = int(swap_data)
+                else:
+                    swap = 0
+                date_past = today - dt_datetime
+                if date_past.days == 0:
+                    c.execute("insert into clicks (write_date, swap) values ('{}', {});".format(write_date, swap))
+                    conn.commit()
+                    print('{}: Swap Data has inserted.'.format(dt))
+    except:
+        pass
+    
+    print('clickSwap Data is scraped.')
+    
+  
+
